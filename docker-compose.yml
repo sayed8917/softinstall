@@ -1,0 +1,37 @@
+services:
+  trivy:
+    image: aquasec/trivy:latest
+    container_name: trivy
+    profiles: ["scan"]
+    volumes:
+      - ./scan-target:/target
+      - trivy-cache:/root/.cache
+      - ./reports:/reports
+    command: ["image", "--exit-code", "1", "--severity", "HIGH,CRITICAL", "python:3.12-alpine"]
+    environment:
+      - TRIVY_CACHE_DIR=/root/.cache
+    restart: "no"
+
+  zap:
+    image: zaproxy/zap-stable:latest
+    container_name: zap
+    profiles: ["scan"]
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./reports:/zap/wrk/:rw
+    command: ["zap.sh", "-daemon", "-port", "8083", "-host", "0.0.0.0"]
+    restart: "unless-stopped"
+
+  gitleaks:
+    image: zricethezav/gitleaks:latest
+    container_name: gitleaks
+    profiles: ["scan"]
+    volumes:
+      - ./scan-target:/target
+      - ./reports:/reports
+    command: ["git", "--source=/target", "--report-path=/reports/gitleaks-report.json"]
+    restart: "no"
+
+volumes:
+  trivy-cache:
